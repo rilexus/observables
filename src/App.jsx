@@ -67,7 +67,20 @@ class Observable {
 
 export const mouseMove$ = Observable.fromEvent(document, 'mousemove')
 
+export const resize$ = Observable.fromEvent(window, 'resize')
+
 function App() {
+  useEffect(() => {
+    resize$
+      .map((e) => ({
+        width: e.target.innerWidth,
+        height: e.target.innerHeight
+      }))
+      .subscribe((e) => {
+        console.log('resize: ', e)
+    })
+  }, [])
+
   useEffect(() => {
     const mouseMoveObserver = (val) => {
       console.log(val)
