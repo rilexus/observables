@@ -96,6 +96,16 @@ export class Observable {
 
   }
 
+  static of(value){
+    return new Observable((next, complete) => {
+      next(value)
+      complete()
+      return {
+        unsubscribe: () => {}
+      }
+    })
+  }
+
   static concat(...observables){
     return new Observable((next, complete, error) => {
       let currentSubscription  = null
@@ -132,6 +142,43 @@ export class Observable {
         }
       }
 
+    })
+  }
+
+  distinctUntilChange(){
+    const self = this
+    return new Observable((next) => {
+      let prevValue = null
+      const subscription = self.subscribe((currentValue) => {
+        if (prevValue !== currentValue) {
+          prevValue = currentValue
+          next(currentValue)
+        }
+      })
+
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe()
+        }
+      }
+    })
+  }
+
+  static merge(...observables){
+    return new Observable((next) => {
+      observables.forEach((observable) => {
+        observable.subscribe((value) => {
+          next(value)
+        })
+      })
+
+      return {
+        unsubscribe: () => {
+          observables.forEach((observable) => {
+            observable.unsubscribe()
+          })
+        }
+      }
     })
   }
 }

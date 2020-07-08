@@ -8,15 +8,6 @@ export const mouseMove$ = Observable.fromEvent(document, 'mousemove')
 
 export const resize$ = Observable.fromEvent(window, 'resize')
 
-const time200 = Observable.timeout(200)
-const time500 = Observable.timeout(500)
-const time1000 = Observable.timeout(1000)
-const time$ = Observable.concat(time200, time500, time1000)
-
-
-const subs = time$.subscribe((time) => {
-  console.log('time: ', time)
-})
 
 function App() {
   useEffect(() => {
