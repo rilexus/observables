@@ -33,20 +33,38 @@ const userMouseMove$ = mouseMove$
 //     console.log('DONE')
 //   }})
 
-const sub = new Subject()
+// const sub = new Subject()
+//
+// sub.subscribe({next: (v) => {
+//     console.log(v)
+//   }})
+//
+// sub.subscribe({next: (v) => {
+//     console.log(v)
+//   }})
+// sub.subscribe({next: (v) => {
+//     console.log(v)
+//   }})
+//
+// sub.next(42)
 
-sub.subscribe({next: (v) => {
-    console.log(v)
-  }})
+const prom = Observable.fromPromise(new Promise((res) => {
+  setTimeout(() => {
+    res(42)
+  }, 2000)
+}))
 
-sub.subscribe({next: (v) => {
-    console.log(v)
+prom.subscribe({next: (r) => {
+    console.log(r)
   }})
-sub.subscribe({next: (v) => {
-    console.log(v)
-  }})
+prom.subscribe({next: (r) => {
+    console.log(r)
+  }}).unsubscribe()
 
-sub.next(42)
+
+// const inter = Observable.interval(1000).takeUntil(Observable.interval(5000)).subscribe({next: () => {
+//   console.log('call')
+//   }})
 
 function App() {
   // useEffect(() => {
@@ -62,15 +80,15 @@ function App() {
 
 
   useEffect(() => {
-    const mouseMoveObserver = (val) => {
-      console.log(val)
-    }
-
-    userMouseMove$
-      .subscribe({next: mouseMoveObserver})
-    return () => {
-      mouseMove$.unsubscribe()
-    }
+    // const mouseMoveObserver = (val) => {
+    //   console.log(val)
+    // }
+    //
+    // userMouseMove$
+    //   .subscribe({next: mouseMoveObserver})
+    // return () => {
+    //   mouseMove$.unsubscribe()
+    // }
   }, [])
   return (
     <div className="App">

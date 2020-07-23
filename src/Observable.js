@@ -12,283 +12,355 @@
 export class Observable {
   constructor(workerFunction) {
     // save function to call it latter
-    this._worker = workerFunction
+    this._worker = workerFunction;
   }
 
-  subscribe({ next, complete, error }){
+  subscribe({ next, complete, error }) {
     // pass the observer object to the previous saved worker function, call it
-    return this._worker({next, error, complete})
+    return this._worker({ next, error, complete });
   }
 
-  unsubscribe(){
-    this._worker = (next, complete, error) => {}
+  unsubscribe() {
+    this._worker = (next, complete, error) => {};
   }
 
   static fromEvent(domElement, eventName) {
-    return new Observable(({next, complete, error}) => {
+    return new Observable(({ next, complete, error }) => {
       // call observer.next on every event call
-      domElement.addEventListener(eventName, next)
+      domElement.addEventListener(eventName, next);
 
       return {
         unsubscribe: () => {
-          domElement.removeEventListener(eventName, next)
-        }
-      }
-    })
+          domElement.removeEventListener(eventName, next);
+        },
+      };
+    });
   }
 
-  map(mappingFunction){
-    const self = this
-    return new Observable(({next, complete, error}) => {
-      const subscription = self.subscribe({next: (val) => next(mappingFunction(val))})
+  static interval(time) {
+    const self = this;
+    return new Observable(({ next, complete, error }) => {
+      const id = setInterval(() => {
+        next();
+      }, time);
 
       return {
         unsubscribe: () => {
-          subscription.unsubscribe()
-        }
-      }
-    })
+          clearInterval(id);
+        },
+      };
+    });
   }
 
-  filter(predicate){
-    const self = this
-    return new Observable(({next, complete, error}) => {
+  // emits values until the endObservable fires for the first time
+  takeUntil(endObservable) {
+    const self = this;
+    return new Observable((observer) => {
+      const subs = self.subscribe({
+        next: (val) => {
+          observer.next(val);
+        },
+      });
 
-      const subscription = self.subscribe({next: (val) => {
-        if (predicate(val)){
-          next(val)
-        }
-      }})
+      endObservable.subscribe({
+        next: () => {
+          // if endObservable fires, quit emitting
+          subs.unsubscribe();
+        },
+      });
+
       return {
         unsubscribe: () => {
-          subscription.unsubscribe()
-        }
-      }
-    })
+          subs.unsubscribe();
+        },
+      };
+    });
   }
 
-  throttle(time){
-    const self = this
-    return new Observable(({next,complete, error}) => {
-      let id = null
-
-      const subscription = self.subscribe({next: (val) => {
-        if(id) {
-          clearTimeout(id)
-        }
-        id = setTimeout(() => {
-          next(val)
-        }, time)
-      }})
+  map(mappingFunction) {
+    const self = this;
+    return new Observable(({ next, complete, error }) => {
+      const subscription = self.subscribe({
+        next: (val) => next(mappingFunction(val)),
+      });
 
       return {
         unsubscribe: () => {
-          if(id) {
-            clearTimeout(id)
+          subscription.unsubscribe();
+        },
+      };
+    });
+  }
+
+  filter(predicate) {
+    const self = this;
+    return new Observable(({ next, complete, error }) => {
+      const subscription = self.subscribe({
+        next: (val) => {
+          if (predicate(val)) {
+            next(val);
           }
-          subscription.unsubscribe()
-        }
-      }
-    })
+        },
+      });
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe();
+        },
+      };
+    });
   }
 
-  forEach(callback){
-    const self = this
+  throttle(time) {
+    const self = this;
+    return new Observable(({ next, complete, error }) => {
+      let id = null;
+
+      const subscription = self.subscribe({
+        next: (val) => {
+          if (id) {
+            clearTimeout(id);
+          }
+          id = setTimeout(() => {
+            next(val);
+          }, time);
+        },
+      });
+
+      return {
+        unsubscribe: () => {
+          if (id) {
+            clearTimeout(id);
+          }
+          subscription.unsubscribe();
+        },
+      };
+    });
+  }
+
+  forEach(callback) {
+    const self = this;
     return new Observable(({ next, complete, error }) => {
       self.subscribe({
         next: (val) => {
-          callback(val)
-          next(val)
+          callback(val);
+          next(val);
         },
         complete: complete,
-        error: error
-      })
-    })
+        error: error,
+      });
+    });
   }
 
-  static timeout(time){
-    return new Observable(({next, complete, error}) => {
-      console.log('call timeout')
+  static timeout(time) {
+    return new Observable(({ next, complete, error }) => {
+      console.log("call timeout");
       const id = setTimeout(() => {
-        next(time)
+        next(time);
         if (complete) {
-          complete(time)
+          complete(time);
         }
-      }, time)
+      }, time);
 
       return {
         unsubscribe: () => {
-          clearTimeout(id)
-        }
-      }
-
-    })
-
+          clearTimeout(id);
+        },
+      };
+    });
   }
 
-  static of(value){
-    return new Observable(({next, complete, error}) => {
-      next(value)
-      if (complete){
-        complete()
+  static of(value) {
+    return new Observable(({ next, complete, error }) => {
+      next(value);
+      if (complete) {
+        complete();
       }
       return {
-        unsubscribe: () => {}
-      }
-    })
+        unsubscribe: () => {},
+      };
+    });
   }
 
-  static concat(...observables){
-    return new Observable(({next, complete, error}) => {
-      let currentSubscription  = null
+  static concat(...observables) {
+    return new Observable(({ next, complete, error }) => {
+      let currentSubscription = null;
 
       const handleSubscription = (observables) => {
-        const [currentObservable, ...rest] = observables
+        const [currentObservable, ...rest] = observables;
         if (!currentObservable) {
-          if(complete){
-              complete()
+          if (complete) {
+            complete();
           }
-          return
+          return;
         }
         currentSubscription = currentObservable.subscribe({
           next: (val) => {
-            next(val)
+            next(val);
           },
           complete: () => {
             // if observables completes subscribe to the next one
-            handleSubscription(rest)
+            handleSubscription(rest);
           },
           error: (err) => {
-            if(error){
-              error(err)
-
+            if (error) {
+              error(err);
             }
-        }})
-      }
+          },
+        });
+      };
 
-      handleSubscription(observables)
-
-      return {
-        unsubscribe: () => {
-          currentSubscription.unsubscribe()
-        }
-      }
-
-    })
-  }
-
-  distinctUntilChange(){
-    const self = this
-    return new Observable(({next}) => {
-      let prevValue = null
-      const subscription = self.subscribe({next: (currentValue) => {
-        if (prevValue !== currentValue) {
-          prevValue = currentValue
-          next(currentValue)
-        }
-      }})
+      handleSubscription(observables);
 
       return {
         unsubscribe: () => {
-          subscription.unsubscribe()
-        }
-      }
-    })
+          currentSubscription.unsubscribe();
+        },
+      };
+    });
   }
 
-  static merge(...observables){
-    return new Observable(({next}) => {
+  distinctUntilChange() {
+    const self = this;
+    return new Observable(({ next }) => {
+      let prevValue = null;
+      const subscription = self.subscribe({
+        next: (currentValue) => {
+          if (prevValue !== currentValue) {
+            prevValue = currentValue;
+            next(currentValue);
+          }
+        },
+      });
+
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe();
+        },
+      };
+    });
+  }
+
+  static merge(...observables) {
+    return new Observable(({ next }) => {
       observables.forEach((observable) => {
-        observable.subscribe({next: (value) => { next(value) }})
-      })
+        observable.subscribe({
+          next: (value) => {
+            next(value);
+          },
+        });
+      });
 
       return {
         unsubscribe: () => {
           observables.forEach((observable) => {
-            observable.unsubscribe()
-          })
-        }
-      }
-    })
+            observable.unsubscribe();
+          });
+        },
+      };
+    });
   }
 
-  static fromArray(array){
-    return new Observable(({next, complete, error}) => {
+  static fromArray(array) {
+    return new Observable(({ next, complete, error }) => {
       array.forEach((val) => {
-        next(val)
-      })
-      if (complete){
-        complete()
+        next(val);
+      });
+      if (complete) {
+        complete();
       }
-    })
+    });
   }
 
-  scan(reducer){
-    const self = this
-    return new Observable(({next, complete}) => {
-      let acc = null
+  scan(reducer) {
+    const self = this;
+    return new Observable(({ next, complete }) => {
+      let acc = null;
       const subs = self.subscribe({
         next: (curValue) => {
-          if (acc === null){
-            acc = curValue
+          if (acc === null) {
+            acc = curValue;
           } else {
-            acc = reducer(acc, curValue)
+            acc = reducer(acc, curValue);
           }
-          next(acc)
+          next(acc);
         },
-        complete:() => {
-          if (complete){
-            complete()
+        complete: () => {
+          if (complete) {
+            complete();
           }
-        }})
+        },
+      });
       return {
         unsubscribe: () => {
-          subs.unsubscribe()
+          subs.unsubscribe();
+        },
+      };
+    });
+  }
+
+  mergeAll() {
+    return new Observable(({ next, complete }) => {
+      this.subscribe({
+        next: (observable) => {
+          const currentSubscriptions = observable.subscribe({
+            next: (val) => {
+              next(val);
+            },
+          });
+        },
+      });
+    });
+  }
+
+  share() {
+    const subject = new Subject();
+    this.subscribe(subject);
+    return subject;
+  }
+
+  static fromPromise(promise) {
+    return new Observable(({ next, complete, error }) => {
+      let unsubscribed = false;
+      promise.then((res) => {
+        if (!unsubscribed) {
+          next(res);
         }
-      }
-    })
-  }
-
-  mergeAll(){
-    return new Observable(({next, complete}) => {
-      this.subscribe({next: (observable) => {
-        const currentSubscriptions = observable.subscribe({
-          next:(val) => {
-            next(val)
-          }})
-      }})
-    })
-  }
-
-  share(){
-    const subject = new Subject()
-    this.subscribe(subject)
-    return subject
+      });
+      return {
+        unsubscribe: () => {
+          unsubscribed = true;
+        },
+      };
+    });
   }
 }
 
 export class Subject extends Observable {
-  observers = []
+  observers = [];
 
   constructor() {
     super((observer) => {
-      this.observers.push(observer)
+      this.observers.push(observer);
     });
 
-    this.next = this.next.bind(this)
-    this.complete = this.complete.bind(this)
-    this.error = this.error.bind(this)
+    this.next = this.next.bind(this);
+    this.complete = this.complete.bind(this);
+    this.error = this.error.bind(this);
   }
 
-  next(value){
-    [...this.observers].forEach(({ next }) => next(value))
+  next(value) {
+    [...this.observers].forEach(({ next }) => next(value));
   }
 
   complete() {
-    [...this.observers].forEach(({complete}) => typeof complete === "function" ? complete(): null)
+    [...this.observers].forEach(({ complete }) =>
+      typeof complete === "function" ? complete() : null
+    );
   }
 
   error(ex) {
-    [...this.observers].forEach(({error}) => typeof error === "function" ? error(ex) : null)
+    [...this.observers].forEach(({ error }) =>
+      typeof error === "function" ? error(ex) : null
+    );
   }
 }
